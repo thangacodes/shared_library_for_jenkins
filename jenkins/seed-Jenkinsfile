@@ -1,8 +1,8 @@
-job('Job builder') {    
-scm {        
-git('https://github.com/thangacodes/terraform_sharelibs.git') 
-steps {        
-shell("whoami")    
+job('Job builder') {
+  scm {
+    git('https://github.com/thangacodes/shared_library_for_jenkins.git')
+    steps {
+      shell("whoami")
+    }
   }
-}
 }
