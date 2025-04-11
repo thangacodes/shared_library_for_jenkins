@@ -1,12 +1,24 @@
-def add(x,y){
-  echo "Sum of ${x} and ${y} is ${x+y}"
+def add(x, y) {
+    def result = x + y
+    echo "Sum of ${x} and ${y} is ${result}"
+    return result
 }
-def mul(x,y){
-  echo "Multiplication of ${x} and ${y} is ${x*y}"
+def subtract(x, y) {
+    def result = x - y
+    echo "Subtraction of ${x} and ${y} is ${result}"
+    return result
 }
-def subs(x,y){
-  echo "Subtraction of ${x} and ${y} is ${x-y}"
+def multiply(x, y) {
+    def result = x * y
+    echo "Multiplication of ${x} and ${y} is ${result}"
+    return result
 }
-def div(x,y){
-  echo "Divison of ${x} and ${y} is ${x/y}"
+def divide(x, y) {
+    if (y == 0) {
+        echo "Cannot divide by zero!"
+        return null
+    }
+    def result = x / y
+    echo "Division of ${x} by ${y} is ${result}"
+    return result
 }
