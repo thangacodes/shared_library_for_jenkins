@@ -5,7 +5,6 @@ def call(String terraformDir = 'shared_library_for_jenkins/infraiac/user_account
         if (!fileExists(terraformDir)) {
             error "Terraform directory '${terraformDir}' not found. Aborting destroy."
         }
-
         // Execute terraform destroy with initialization
         sh """
             cd ${terraformDir}
