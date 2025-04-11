@@ -1,70 +1,69 @@
 def gv
-
 pipeline {
-    agent any
-    // parameters {
-    //     choice(name: 'VERSION', choices:['1.1.0','1.2.0','1.3.0'], description:'')
-    //     booleanParam(name: 'executeTests', defaultValue: true, description: '')
-    // }
-    stages{
-        stage('code clone'){
-            steps{
-                echo 'Git repo cloning in progress..'
-                git branch: 'main', url: 'https://github.com/send2durai/terraform_sharelibs.git'
-            }
-        }
-        stage('loading groovy'){
-            steps{
-                script{
-                    pwd
-                    sleep(5)
-                    gv = load "jenkins/terra.groovy"
-                }
-            }
-        }
-        stage('init'){
-            steps{
-                script{
-                    gv.tfinit()
-                }
-            }
-        }
-        stage('fmt'){
-            steps{
-                script {
-                    gv.tffmt()
-                }
-            }
-        }
-        stage('validate'){
-            steps{
-                script {
-                    gv.tfvalidate()
-                }
-            }
-        }
-        stage('User Input'){
-            input{
-                message "should we deploy the tf project? Say yes or no?"
-            }
-            steps{
-                echo 'Terraform code in progress'
-            }
-        }
-        stage('plan'){
-            steps{
-                script {
-                    gv.tfplan()
-                }
-            }
-        }
-        stage('Workspace Cleanup'){
-            steps{
-                sh '''
-                   echo "Cleaning the Jenkins Workspace"
-                '''
-                cleanWs()
-            }
-        }
+  agent any
+  parameters {
+      choice(name: 'VERSION', choices:['1.1.0','1.2.0','1.3.0'], description:'')
+      booleanParam(name: 'executeTests', defaultValue: true, description: '')
+  }
+  stages {
+    stage('checkout') {
+      steps {
+        echo 'Git repo cloning in progress..'
+        git branch: 'main', url: 'https://github.com/thangacodes/shared_library_for_jenkins.git'
+      }
     }
+    stage('loading groovy') {
+      steps {
+        script {
+          pwd
+          sleep(5)
+          gv = load "jenkins/terra.groovy"
+        }
+      }
+    }
+    stage('init') {
+      steps {
+        script {
+          gv.tfinit()
+        }
+      }
+    }
+    stage('fmt') {
+      steps {
+        script {
+          gv.tffmt()
+        }
+      }
+    }
+    stage('validate') {
+      steps {
+        script {
+          gv.tfvalidate()
+        }
+      }
+    }
+    stage('User Input') {
+      input {
+        message "should we deploy? Say yes or no?"
+      }
+      steps {
+        echo 'Terraform code in progress'
+      }
+    }
+    stage('plan') {
+      steps {
+        script {
+          gv.tfplan()
+        }
+      }
+    }
+    stage('Workspace Cleanup') {
+      steps {
+        sh """
+        echo 'Cleaning the Jenkins Workspace'
+        """
+        cleanWs()
+      }
+    }
+  }
 }
