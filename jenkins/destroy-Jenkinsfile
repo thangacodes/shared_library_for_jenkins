@@ -1,5 +1,3 @@
-@Library('my-tf-library') _
-
 import hudson.model.*
 import hudson.EnvVars
 import groovy.json.JsonSlurperClassic
@@ -8,35 +6,35 @@ import groovy.json.JsonOutput
 import groovy.json.*
 import java.net.URL
 
+@Library('my-tf-library') _
 pipeline {
-    agent any
-
-    stages {
-        stage('Load Libraries') {
-            steps {
-                echo 'Loading terraform shared libraries..'
-            }
-        }
-        stage ('Tf Refresh'){
-            steps{
-                script{
-                refreshTerraform()
-            }
-        }
+  agent any
+  stages {
+    stage('Load Libraries') {
+      steps {
+        echo 'Loading terraform shared libraries..'
+      }
     }
-        stage('Infra Destroy'){
-            steps{
-                script{
-                echo "Infra services will be getting deleted by terraform..."
-                destroyTerraform()
-            }
+    stage('Tf Refresh') {
+      steps {
+        script {
+          refreshTerraform()
         }
+      }
     }
-    }
-    post {
-        always {
-            // deleteDir()
-            cleanWs()
+    stage('Infra Destroy') {
+      steps {
+        script {
+          echo "Infra services will be getting deleted by terraform..."
+          destroyTerraform()
         }
+      }
     }
   }
+  post {
+    always {
+      // deleteDir()
+      cleanWs()
+    }
+  }
+}
