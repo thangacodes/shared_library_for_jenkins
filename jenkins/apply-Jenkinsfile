@@ -6,7 +6,7 @@ import groovy.json.JsonOutput
 import groovy.json.*
 import java.net.URL
 
-@Library('my-tf-library') _
+@Library('my-tf-library')_
 
 pipeline {
   agent any
@@ -49,6 +49,11 @@ pipeline {
         script {
           applyTerraform()
         }
+      }
+    }
+    post {
+      always {
+        slackNotifier(currentBuild.currentResult)
       }
     }
   }
