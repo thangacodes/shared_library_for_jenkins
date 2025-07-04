@@ -7,7 +7,7 @@ module "ec2-create" {
   image_id = "ami-0d03cb826412c6b0f"
   vm_spec  = "t2.micro"
   keyname  = "bastion"
-  sgp      = ["allowed-all-ports"]
+  sgp      = ["sg-0fb1052b659369aa8"]
   tagging = {
     Name        = "mod-invoke-vm"
     Environment = "dev"
