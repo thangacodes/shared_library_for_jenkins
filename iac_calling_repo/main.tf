@@ -24,5 +24,5 @@ output "modvm_privateip" {
   value = module.ec2-create.modvm_privateip
 }
 output "modvm_tagging" {
-  value = module.ec2-create.modvm.tagging
+  value = module.ec2-create.modvm_tagging
 }
