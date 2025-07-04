@@ -15,3 +15,16 @@ module "ec2-create" {
     Owner       = "admin@try-devops.xyz"
   }
 }
+
+# output section
+output "modvm_publicip" {
+  value = module.ec2-create.modvm_publicip
+}
+
+output "modvm_privateip" {
+  value = module.ec2-create.modvm_privateip
+}
+
+output "modvm_tagging" {
+  value = module.ec2-create.modvm.tags_all
+}
