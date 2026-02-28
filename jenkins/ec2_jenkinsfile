@@ -1,0 +1,182 @@
+pipeline {
+    agent any
+    parameters {
+        choice(
+            name: 'ACCOUNT_NAME',
+            choices: [
+                'dev:<AWS_ACCOUNT_NO>',
+                'prod:<AWS_ACCOUNT_NO>'
+            ],
+            description: 'Select appropriate account with number'
+        )
+        string(
+            name: 'EC2_NAME',
+            defaultValue: 'DEV-CLUSTER',
+            description: 'Enter "DEV-CLUSTER" or comma-separated EC2 instances: dev-web0, dev-web1, dev-app0'
+        )
+        choice(
+            name: 'ACTION',
+            choices: ['start', 'stop', 'restart'],
+            description: 'EC2 power action'
+        )
+        booleanParam(
+            name: 'CONFIRM',
+            defaultValue: false,
+            description: 'Required for START/STOP/RESTART'
+        )
+    }
+    environment {
+        AWS_REGION = 'ap-south-1'
+    }
+    stages {
+	    stage('Cleanup Workspace'){
+		    steps {
+			    script {
+				    echo "Cleaning up workspace..."
+					deleteDir() // Deletes all files in the current workspace
+				}
+			}
+		}
+        stage('Validate Input') {
+            steps {
+                script {
+                    echo "ACCOUNT  : ${params.ACCOUNT_NAME}"
+                    echo "INSTANCE : ${params.EC2_NAME}"
+                    echo "ACTION   : ${params.ACTION}"
+                    echo "CONFIRM  : ${params.CONFIRM}"
+
+                    if ((params.ACTION in ['start','stop','restart']) && !params.CONFIRM) {
+                        error("Confirmation required for STOP / RESTART actions.")
+                    }
+                }
+            }
+        }
+        stage('Resolve Instance IDs') {
+            steps {
+                script {
+                    def accountId = params.ACCOUNT_NAME.split(":")[1].trim()
+                    def ec2Map = [
+                        '<AWS_ACCOUNT_NO>': [
+                            'dev-web0': 'i-0952ab4e534b1c840',
+                            'dev-web1': 'i-0c048365b1f9f2755',
+                            'dev-app0': 'i-0051383113659a88d'
+                        ],
+                        '<AWS_ACCOUNT_NO>': [
+                            'prod-web0': 'i-0952ab4e534b1c840',
+                            'prod-web1': 'i-0c048365b1f9f2755',
+                            'prod-app0': 'i-0051383113659a88d'
+                        ]
+                    ]
+
+                    def selectedMap = ec2Map[accountId]
+                    if (!selectedMap) {
+                        error("No EC2 mapping found for account ${accountId}")
+                    }
+
+                    def instanceIds = []
+                    if (params.EC2_NAME.trim().toUpperCase() == "ALL") {
+                        instanceIds = selectedMap.values()
+                    } else {
+                        def selectedNodes = params.EC2_NAME.split(",").collect { it.trim() }
+                        for (node in selectedNodes) {
+                            def id = selectedMap[node]
+                            if (!id) {
+                                error("No instance ID found for ${node}")
+                            }
+                            instanceIds << id
+                        }
+                    }
+
+                    env.INSTANCE_IDS = instanceIds.join(" ")
+                    echo "Resolved Instance IDs: ${env.INSTANCE_IDS}"
+                }
+            }
+        }
+        stage('Execute EC2 Action') {
+            steps {
+                script {
+                    def expectedStateCode = ""
+                    def waitCommand = ""
+                    def healthCheckRequired = false
+
+                    if (params.ACTION == 'start') {
+                        expectedStateCode = "16"  // running
+                        waitCommand = "instance-running"
+                        healthCheckRequired = true
+                        sh """
+                        aws ec2 start-instances \
+                            --instance-ids ${env.INSTANCE_IDS} \
+                            --region ${env.AWS_REGION}
+                        """
+                    } else if (params.ACTION == 'stop') {
+                        expectedStateCode = "80"  // stopped
+                        waitCommand = "instance-stopped"
+                        sh """
+                        aws ec2 stop-instances \
+                            --instance-ids ${env.INSTANCE_IDS} \
+                            --region ${env.AWS_REGION}
+                        """
+                    } else if (params.ACTION == 'restart') {
+                        expectedStateCode = "16"  // running after reboot
+                        waitCommand = "instance-running"
+                        healthCheckRequired = true
+                        sh """
+                        aws ec2 reboot-instances \
+                            --instance-ids ${env.INSTANCE_IDS} \
+                            --region ${env.AWS_REGION}
+                        """
+                    }
+
+                    // Wait for state transition
+                    sh """
+                    aws ec2 wait ${waitCommand} \
+                        --instance-ids ${env.INSTANCE_IDS} \
+                        --region ${env.AWS_REGION}
+                    """
+                    echo "Wait completed. Verifying EC2 state codes..."
+
+                    // Verify state codes
+                    def stateOutput = sh(
+                        script: """
+                        aws ec2 describe-instances \
+                            --instance-ids ${env.INSTANCE_IDS} \
+                            --region ${env.AWS_REGION} \
+                            --query "Reservations[].Instances[].State.Code" \
+                            --output text
+                        """,
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Current State Codes: ${stateOutput}"
+                    def codes = stateOutput.tokenize()
+                    for (code in codes) {
+                        if (code != expectedStateCode) {
+                            error("Instance did not reach expected state. Expected: ${expectedStateCode}, Found: ${code}")
+                        }
+                    }
+
+                    echo "All instances reached expected state as: ${params.ACTION} and EC2 State Code: (${expectedStateCode})."
+
+                    // Additional health check for start / restart
+                    if (healthCheckRequired) {
+                        echo "Waiting for EC2 status checks to pass..."
+                        sh """
+                        aws ec2 wait instance-status-ok \
+                            --instance-ids ${env.INSTANCE_IDS} \
+                            --region ${env.AWS_REGION}
+                        """
+                        echo "All EC2 instance status checks passed."
+                    }
+                }
+            }
+        }
+    }
+    post {
+        success {
+            echo "SUCCESS: ${params.ACTION.toUpperCase()} executed on ${params.EC2_NAME}"
+        }
+        failure {
+            echo "FAILED: Could not ${params.ACTION} ${params.EC2_NAME}"
+        }
+    }
+}
